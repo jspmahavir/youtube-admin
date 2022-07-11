@@ -23,24 +23,31 @@ class Gmailauth extends BaseController
      */
     public function index()
     {
-        redirect('gmail-auth');
+        $this->global['pageTitle'] = 'YouTube Viewer : Token List';
+        $this->loadViews("gmail-auth/list", $this->global, NULL, NULL);
     }
 
     function listing() {
-        $searchText = $this->security->xss_clean($this->input->post('searchText'));
-        $data['searchText'] = $searchText;
-
-        $this->load->library('pagination');
-            
-        $count = $this->gmail_auth_model->tokenListingCount($searchText);
-
-        $returns = $this->paginationCompress("gmail-auth/", $count, 10);
         
-        $data['tokenRecords'] = $this->gmail_auth_model->tokenListing($searchText, $returns["page"], $returns["segment"]);
+        $data = $row = array();
         
-        $this->global['pageTitle'] = 'YouTube Viewer : Token List';
+        // Fetch account's records
+        $gauthData = $this->gmail_auth_model->getRows($_REQUEST);
         
-        $this->loadViews("gmail-auth/list", $this->global, $data, NULL);
+        $i = $_REQUEST['start'];
+        foreach($gauthData as $gmailauth){
+            $i++;
+            $data[] = array($gmailauth['app_name'], $gmailauth['user_email'], $gmailauth['_id']->{'$id'});
+        }
+        $output = array(
+            "draw" => $_REQUEST['draw'],
+            "recordsTotal" => $this->gmail_auth_model->countAll(),
+            "recordsFiltered" => $this->gmail_auth_model->countFiltered($_REQUEST),
+            "data" => $data,
+        );
+        
+        // Output to JSON format
+        echo json_encode($output);
     }
 
     function add() {

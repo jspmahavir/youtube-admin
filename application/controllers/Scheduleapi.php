@@ -150,6 +150,17 @@ class Scheduleapi extends REST_Controller {
                 if (is_numeric($duration) && is_numeric($view) && is_numeric($like) && is_numeric($comment) && is_numeric($subscribe)) {
                     $res = $this->schedule_api_model->add_user_request($lastId, $auth_id, $yt_url, $keyword, $view, $like, $comment, $subscribe, $duration, $channel_id);
                     if ($res) {
+
+                        $transcriptUrl = BASE_URL.'cron/generateVideoTranscript';
+                        $ch = curl_init($transcriptUrl);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 4000);
+                        curl_exec($ch);
+
                         $this->response([
                             'status' 	=> true,
                             'message' 	=> 'Your data has been successfully stored'

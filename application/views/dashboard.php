@@ -19,7 +19,7 @@
                 <div class="icon">
                   <i class="ionicons ion-social-buffer"></i>
                 </div>
-                <a href="<?php echo base_url(); ?>servers" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a>
+                <a href="<?php echo base_url(); ?>server" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a>
               </div>
             </div><!-- ./col -->
             <div class="col-lg-3 col-xs-6">

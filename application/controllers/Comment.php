@@ -23,7 +23,8 @@ class Comment extends BaseController
      */
     public function index()
     {
-        redirect('comment/');
+        $this->global['pageTitle'] = 'YouTube Viewer : Comment List';
+        $this->loadViews("comment/list", $this->global, NULL, NULL);
     }
     
     /**
@@ -31,21 +32,30 @@ class Comment extends BaseController
      */
     function listing()
     {
-            $searchText = $this->security->xss_clean($this->input->post('searchText'));
-            $data['searchText'] = $searchText;
-            
-            $this->load->library('pagination');
-            
-            $count = $this->comment_model->commentListingCount($searchText);
-
-            $returns = $this->paginationCompress("comment/", $count, 10);
-            
-            $data['commentRecords'] = $this->comment_model->commentListing($searchText, $returns["page"], $returns["segment"]);
-            
-            $this->global['pageTitle'] = 'YouTube Viewer : Comment List';
-            
-            $this->loadViews("comment/list", $this->global, $data, NULL);
-        // }
+        $data = $row = array();
+        
+        // Fetch comment's records
+        $cmtData = $this->comment_model->getRows($_REQUEST);
+        
+        $i = $_REQUEST['start'];
+        foreach($cmtData as $comment){
+            $i++;
+            $created = date( 'jS M Y', strtotime($comment['created_date']));
+            $video_id = isset($comment['video_id']) ? $comment['video_id'] : '';
+            $request = isset($comment['request']) ? $comment['request'] : '';
+            $response = isset($comment['response']) ? json_encode($comment['response']) : '';
+            $source = isset($comment['source']) ? $comment['source'] : '';
+            $data[] = array($comment['comment_id'], $video_id, $comment['comment'], $request, $response, $source, $created);
+        }
+        $output = array(
+            "draw" => $_REQUEST['draw'],
+            "recordsTotal" => $this->comment_model->countAll(),
+            "recordsFiltered" => $this->comment_model->countFiltered($_REQUEST),
+            "data" => $data,
+        );
+        
+        // Output to JSON format
+        echo json_encode($output);
     }
 
     /**
@@ -64,31 +74,31 @@ class Comment extends BaseController
      */
     function addNewComment()
     {
-            $this->load->library('form_validation');
-            $this->form_validation->set_rules('comment','Comment','required|max_length[250]');
-            if($this->form_validation->run() == FALSE)
-            {
-                $this->add();
+        $this->load->library('form_validation');
+        $this->form_validation->set_rules('comment','Comment','required|max_length[250]');
+        if($this->form_validation->run() == FALSE)
+        {
+            $this->add();
+        }
+        else
+        {
+            $comment = $this->input->post('comment');
+            $lastId = $this->comment_model->getLastId();
+            if(empty($lastId)) {
+                $lastId = 1;
             }
-            else
-            {
-                $comment = $this->input->post('comment');
-                $lastId = $this->comment_model->getLastId();
-                if(empty($lastId)) {
-                    $lastId = 1;
-                }
-                $commentInfo = array('comment_id'=>$lastId, 'comment'=>$comment, 'created_date'=>date('Y-m-d H:i:s'), 'modified_date'=>date('Y-m-d H:i:s'));
-                
-                $this->load->model('comment_model');
-                $result = $this->comment_model->addNewComment($commentInfo);
-                
-                if($result > 0){
-                    $this->session->set_flashdata('success', 'Add new comment successfully');
-                } else {
-                    $this->session->set_flashdata('error', 'Add new comment failed');
-                }
-                redirect('comment/listing');
+            $commentInfo = array('comment_id'=>$lastId, 'comment'=>$comment, 'created_date'=>date('Y-m-d H:i:s'), 'modified_date'=>date('Y-m-d H:i:s'));
+            
+            $this->load->model('comment_model');
+            $result = $this->comment_model->addNewComment($commentInfo);
+            
+            if($result > 0){
+                $this->session->set_flashdata('success', 'Add new comment successfully');
+            } else {
+                $this->session->set_flashdata('error', 'Add new comment failed');
             }
+            redirect('comment/listing');
+        }
     }
 
     
@@ -155,14 +165,14 @@ class Comment extends BaseController
      */
     function deleteComment()
     {
-            $commentId = $this->input->post('commentId');
-            $result = $this->comment_model->deleteComment($commentId);
-            
-            if ($result > 0) {
-                echo(json_encode(array('status' => TRUE)));
-            } else {
-                echo(json_encode(array('status' => FALSE)));
-            }
+        $commentId = $this->input->post('commentId');
+        $result = $this->comment_model->deleteComment($commentId);
+        
+        if ($result > 0) {
+            echo(json_encode(array('status' => TRUE)));
+        } else {
+            echo(json_encode(array('status' => FALSE)));
+        }
     }
     
     /**

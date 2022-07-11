@@ -2,7 +2,7 @@
     <!-- Content Header (Page header) -->
     <section class="content-header">
       <h1>
-        <i class="fa fa-user"></i> Comment Management
+        <i class="fa fa-comment"></i> Comment Management
         <small>Add / Edit Comment</small>
       </h1>
     </section>

@@ -6,7 +6,7 @@ $comment = $commentInfo[0]['comment'];
     <!-- Content Header (Page header) -->
     <section class="content-header">
       <h1>
-        <i class="fa fa-user"></i> Client Management
+        <i class="fa fa-comment"></i> Client Management
         <small>Add / Edit Client</small>
       </h1>
     </section>

@@ -1,4 +1,4 @@
-<div class="content-wrapper">
+<div class="content-wrapper account">
     <!-- Content Header (Page header) -->
     <section class="content-header">
       <h1>
@@ -10,6 +10,7 @@
         <div class="row">
             <div class="col-xs-12 text-right">
                 <div class="form-group">
+                    <a class="btn btn-primary import-data"><i class="fa fa-plus"></i> Import</a>
                     <a class="btn btn-primary" href="<?php echo base_url(); ?>account/add"><i class="fa fa-plus"></i> Add New</a>
                 </div>
             </div>
@@ -50,68 +51,66 @@
               <div class="box">
                 <div class="box-header">
                     <h3 class="box-title">Account List</h3>
-                    <div class="box-tools">
-                        <form action="<?php echo base_url() ?>account" method="POST" id="searchList">
-                            <div class="input-group">
-                              <input type="text" name="searchText" value="<?php echo $searchText; ?>" class="form-control input-sm pull-right" style="width: 150px;" placeholder="Search"/>
-                              <div class="input-group-btn">
-                                <button class="btn btn-sm btn-default searchList"><i class="fa fa-search"></i></button>
-                              </div>
-                            </div>
-                        </form>
-                    </div>
                 </div><!-- /.box-header -->
                 <div class="box-body table-responsive no-padding">
-                  <table class="table table-hover">
-                    <tr>
-                        <th>Email</th>
-                        <th>Password</th>
-                        <th>Recovery Email</th>
-                        <th>Validation Password</th>
-                        <th>Created On</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                    <?php
-                    if(!empty($accountRecords))
-                    {
-                        foreach($accountRecords as $record)
-                        {
-                    ?>
-                    <tr>
-                        <td><?php echo $record['email'] ?></td>
-                        <td><?php echo $record['password'] ?></td>
-                        <td><?php echo $record['recovery_email'] ?></td>
-                        <td><?php echo $record['email_validation_pass'] ?></td>
-                        <td><?php echo date("d-m-Y", strtotime($record['created_date'])) ?></td>
-                        <td class="text-center">
-                            <a class="btn btn-sm btn-info" href="<?php echo base_url().'account/edit/'.$record['login_id']; ?>" title="Edit"><i class="fa fa-pencil"></i></a>
-                            <a class="btn btn-sm btn-danger deleteAccount" href="#" data-accountid="<?php echo $record['login_id']; ?>" title="Delete"><i class="fa fa-trash"></i></a>
-                        </td>
-                    </tr>
-                    <?php
-                        }
-                    }
-                    ?>
+                  <table id="acc_data_table" class="display table table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Password</th>
+                            <th>Recovery Email</th>
+                            <th>Validation Password</th>
+                            <th>Created On</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
                   </table>
-                  
                 </div><!-- /.box-body -->
-                <div class="box-footer clearfix">
-                    <?php echo $this->pagination->create_links(); ?>
-                </div>
               </div><!-- /.box -->
             </div>
         </div>
     </section>
+    <!-- Modal Import Data-->
+    <?php $this->load->helper("form"); ?>
+    <form role="form" action="<?php echo base_url() ?>account/import" method="post" enctype="multipart/form-data">
+        <div class="modal fade" id="show_modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Import Account List</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="file" id="file" name="file"/>
+            </div>
+            <div class="modal-footer">
+                <a href="<?php echo base_url()?>assets/sample/account.csv">Sample</a>
+                <input type="submit" class="btn btn-primary" name="importSubmit" value="Import">
+            </div>
+            </div>
+        </div>
+        </div>
+    </form>
+    <!-- End Modal Import Data-->
 </div>
 <!-- <script type="text/javascript" src="<?php //echo base_url(); ?>assets/js/common.js" charset="utf-8"></script> -->
 <script type="text/javascript" charset="utf-8">
     jQuery(document).ready(function(){
-        jQuery('ul.pagination li a').click(function (e) {
-            e.preventDefault();
-            var link = jQuery(this).get(0).href;
-            var value = link.substring(link.lastIndexOf('/') + 1);
-            jQuery("#searchList").attr("action", baseURL + "account/" + value);
-            jQuery("#searchList").submit();
+        jQuery('#acc_data_table').DataTable({
+            processing: true,
+            serverSide: true,
+            order: [[4, 'desc']],
+            ajax: '<?php echo base_url('account/listing'); ?>',
+            columnDefs: [{
+                "targets": [-1],
+                "orderable": false,
+                "data": null,
+                "render": function(data,type,full,meta)
+                { return '<a class="btn btn-sm btn-info" href="account/edit/'+data[5]+'" title="Edit"><i class="fa fa-pencil"></i></a>&nbsp&nbsp<a class="btn btn-sm btn-danger deleteAccount" href="#" data-accountid='+data[5]+' title="Delete"><i class="fa fa-trash"></i></a>'
+                }
+            }]
         });
 
         //delete account start
@@ -138,5 +137,10 @@
             }
         });
         //delete account end
+
+        // import data
+        jQuery('.account .import-data').on('click',function(){
+            $('#show_modal').modal('show');
+        });
     });
 </script>

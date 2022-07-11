@@ -50,91 +50,30 @@
               <div class="box">
                 <div class="box-header">
                     <h3 class="box-title">Schedule List</h3>
-                    <div class="box-tools">
-                        <form action="<?php echo base_url() ?>schedule" method="POST" id="searchList">
-                            <div class="input-group">
-                              <input type="text" name="searchText" value="<?php echo $searchText; ?>" class="form-control input-sm pull-right" style="width: 150px;" placeholder="Search"/>
-                              <div class="input-group-btn">
-                                <button class="btn btn-sm btn-default searchList"><i class="fa fa-search"></i></button>
-                              </div>
-                            </div>
-                        </form>
-                    </div>
                 </div><!-- /.box-header -->
                 <div class="box-body table-responsive no-padding">
-                  <table class="table table-hover">
-                    <tr>
-                        <th>Video ID</th>
-                        <th>Channel ID</th>
-                        <th>Video Duration</th>
-                        <th>Scheduled View Count</th>
-                        <th>Completed View Count</th>
-                        <th>Scheduled Like Count</th>
-                        <th>Completed Like Count</th>
-                        <th>Scheduled Comment Count</th>
-                        <th>Completed Comment Count</th>
-                        <th>Scheduled Subscribe Count</th>
-                        <th>Completed Subscribe Count</th>
-                        <th>Keyword</th>
-                        <th>Created On</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                    <?php
-                    if(!empty($scheduleRecords))
-                    {
-                        foreach($scheduleRecords as $record)
-                        {
-                    ?>
-                    <tr>
-                        <td><?php echo $record['video_url'] ?></td>
-                        <td><?php echo $record['channelId'] ?></td>
-                        <td><?php echo $record['video_duration'] ?></td>
-                        <td><?php echo $record['scheduled_view_count'] ?></td>
-                        <td><?php echo $record['completed_view_count'] ?></td>
-                        <td><?php echo $record['scheduled_like_count'] ?></td>
-                        <td><?php echo $record['completed_like_count'] ?></td>
-                        <td><?php echo $record['scheduled_comment_count'] ?></td>
-                        <td><?php echo $record['completed_comment_count'] ?></td>
-                        <td><?php echo $record['scheduled_subscribe_count'] ?></td>
-                        <td><?php echo $record['completed_subscribe_count'] ?></td>
-                        <td><?php echo $record['keyword'] ?></td>
-                        <td><?php echo date("d-m-Y", strtotime($record['created_date'])) ?></td>
-                        <td class="text-center">
-                            <div>
-                                <form action="<?php echo base_url() ?>schedule-detail" method="post" title="View">
-                                    <input type="hidden" name="schedule_id" value="<?php echo $record['schedule_data_id']; ?>"/>
-                                    <button type="submit" class="btn btn-sm btn-info"><i class="fa fa-info-circle"></i></button>
-                                </form>
-                                &nbsp;
-                                <form action="<?php echo base_url() ?>schedule-comment-detail" method="post" title="Comment">
-                                    <input type="hidden" name="schedule_id" value="<?php echo $record['schedule_data_id']; ?>"/>
-                                    <button type="submit" class="btn btn-sm btn-info"><i class="fa fa-info-circle"></i></button>
-                                </form>
-                                &nbsp;
-                                <!-- <form action="<?php echo base_url() ?>schedule-like-detail" method="post" title="Like">
-                                    <input type="hidden" name="schedule_id" value="<?php echo $record['schedule_data_id']; ?>"/>
-                                    <button type="submit" class="btn btn-sm btn-info"><i class="fa fa-info-circle"></i></button>
-                                </form>
-                                &nbsp;
-                                <form action="<?php echo base_url() ?>schedule-subscribe-detail" method="post" title="Subscribe">
-                                    <input type="hidden" name="schedule_id" value="<?php echo $record['schedule_data_id']; ?>"/>
-                                    <button type="submit" class="btn btn-sm btn-info"><i class="fa fa-info-circle"></i></button>
-                                </form> -->
-                            </div>
-                            <!-- <a class="btn btn-sm btn-info" href="<?php //echo base_url().'schedule-detail/'.$record['schedule_data_id']; ?>" title="Details"><i class="fa fa-info-circle"></i></a> -->
-                            <!-- <a class="btn btn-sm btn-danger deleteSchedule" href="#" data-scheduledataid="<?php //echo $record['schedule_data_id']; ?>" title="Delete"><i class="fa fa-trash"></i></a> -->
-                        </td>
-                    </tr>
-                    <?php
-                        }
-                    }
-                    ?>
-                  </table>
-                  
+                    <table id="sche_data_table" class="display table table-hover" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Video ID</th>
+                                <th>Channel ID</th>
+                                <th>Video Duration</th>
+                                <th>Scheduled View Count</th>
+                                <th>Completed View Count</th>
+                                <th>Scheduled Like Count</th>
+                                <th>Completed Like Count</th>
+                                <th>Scheduled Comment Count</th>
+                                <th>Completed Comment Count</th>
+                                <th>Scheduled Subscribe Count</th>
+                                <th>Completed Subscribe Count</th>
+                                <th>Keyword</th>
+                                <th>Created On</th>
+                                <th>Status / Do</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                    </table>
                 </div><!-- /.box-body -->
-                <div class="box-footer clearfix">
-                    <?php echo $this->pagination->create_links(); ?>
-                </div>
               </div><!-- /.box -->
             </div>
         </div>
@@ -143,12 +82,60 @@
 <!-- <script type="text/javascript" src="<?php //echo base_url(); ?>assets/js/common.js" charset="utf-8"></script> -->
 <script type="text/javascript" charset="utf-8">
     jQuery(document).ready(function(){
-        jQuery('ul.pagination li a').click(function (e) {
-            e.preventDefault();
-            var link = jQuery(this).get(0).href;
-            var value = link.substring(link.lastIndexOf('/') + 1);
-            jQuery("#searchList").attr("action", baseURL + "schedule/" + value);
-            jQuery("#searchList").submit();
+        jQuery('#sche_data_table').DataTable({
+            processing: true,
+            serverSide: true,
+            order: [[12, 'desc']],
+            ajax: '<?php echo base_url('schedule/listing'); ?>',
+            columnDefs: [{
+                "targets": [13],
+                "orderable": false,
+                "data": null,
+                "render": function(data,type,full,meta)
+                {
+                    console.log(data);
+                    if(data[13] == 1) {
+                        return '<p>Running /</p><a class="btn btn-sm updateSchedule" href="#" data-scheduledataid='+data[14]+' title="Stop"><input type="button" class="btn btn-primary" value="Stop"><input type="hidden" name="schedule_status_id" id="'+data[14]+'_schedule_status_id" value="0"/></a>'
+                    } else {
+                        return '<p>Stopped /</p><a class="btn btn-sm updateSchedule" href="#" data-scheduledataid='+data[14]+' title="Start"><input type="button" class="btn btn-primary" value="Start"><input type="hidden" name="schedule_status_id" id="'+data[14]+'_schedule_status_id" value="1"/></a>'
+                    }
+                }
+            },
+            {
+                "targets": [-1],
+                "orderable": false,
+                "data": null,
+                "render": function(data,type,full,meta)
+                { 
+                    return '<div><form action="scheduledetail" method="post" title="Schedule Detail"><input type="hidden" name="schedule_id" value="'+data[14]+'"/><button type="submit" class="btn btn-sm btn-info"><i class="fa fa-eye"></i></button></form>&nbsp;<form action="commentdetail" method="post" title="Comments"><input type="hidden" name="schedule_id" value="'+data[14]+'"/><button type="submit" class="btn btn-sm btn-info"><i class="fa fa-comment"></i></button></form></div>'
+                }
+            }]
+        });
+
+        jQuery(document).on("click", ".updateSchedule", function(){
+            var scheduleMasterId = $(this).data("scheduledataid");
+            var hitURL = baseURL + "schedule/updateSchedule";
+            var fieldId = "#"+scheduleMasterId+"_schedule_status_id";
+            var scheduleStatusId = jQuery(fieldId).val();
+            var confirmation = confirm("Are you sure to Update this schedule ?");
+            
+            if(confirmation)
+            {
+                jQuery.ajax({
+                type : "POST",
+                dataType : "json",
+                url : hitURL,
+                data : { scheduleMasterId : scheduleMasterId, scheduleStatusId: scheduleStatusId } 
+                }).done(function(data){
+                    if(data.status = true) { 
+                        var uri = baseURL + "schedule";
+                        window.location.href = uri;
+                    }
+                    else if(data.status = false) { alert("Schedule updation failed"); }
+                    else { alert("Access denied..!"); }
+                });
+            }
+
         });
 
         //delete schedule start

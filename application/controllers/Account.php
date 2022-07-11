@@ -23,7 +23,8 @@ class Account extends BaseController
      */
     public function index()
     {
-        redirect('account');
+        $this->global['pageTitle'] = 'YouTube Viewer : Account List';
+        $this->loadViews("account/list", $this->global, NULL, NULL);
     }
     
     /**
@@ -31,27 +32,26 @@ class Account extends BaseController
      */
     function listing()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {        
-            $searchText = $this->security->xss_clean($this->input->post('searchText'));
-            $data['searchText'] = $searchText;
-            
-            $this->load->library('pagination');
-            
-            $count = $this->account_model->accountListingCount($searchText);
-
-            $returns = $this->paginationCompress("account/", $count, 10);
-            
-            $data['accountRecords'] = $this->account_model->accountListing($searchText, $returns["page"], $returns["segment"]);
-            
-            $this->global['pageTitle'] = 'YouTube Viewer : Account List';
-            
-            $this->loadViews("account/list", $this->global, $data, NULL);
-        // }
+        $data = $row = array();
+        
+        // Fetch account's records
+        $accData = $this->account_model->getRows($_REQUEST);
+        
+        $i = $_REQUEST['start'];
+        foreach($accData as $account){
+            $i++;
+            $created = date( 'jS M Y', strtotime($account['created_date']));
+            $data[] = array($account['email'], $account['password'], $account['recovery_email'], $account['email_validation_pass'], $created, $account['login_id']);
+        }
+        $output = array(
+            "draw" => $_REQUEST['draw'],
+            "recordsTotal" => $this->account_model->countAll(),
+            "recordsFiltered" => $this->account_model->countFiltered($_REQUEST),
+            "data" => $data,
+        );
+        
+        // Output to JSON format
+        echo json_encode($output);
     }
 
     /**
@@ -59,19 +59,11 @@ class Account extends BaseController
      */
     function add()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {
-            $this->load->model('account_model');
-            // $data['roles'] = $this->account_model->getAccountRoles();
-            
-            $this->global['pageTitle'] = 'YouTube Viewer : Add New Account';
+        $this->load->model('account_model');;
 
-            $this->loadViews("account/add", $this->global, NULL, NULL);
-        // }
+        $this->global['pageTitle'] = 'YouTube Viewer : Add New Account';
+
+        $this->loadViews("account/add", $this->global, NULL, NULL);
     }
 
     /**
@@ -97,44 +89,39 @@ class Account extends BaseController
      */
     function addNewAccount()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {
-            $this->load->library('form_validation');
-            
-            $this->form_validation->set_rules('email','Email','trim|required|valid_email|max_length[128]');
-            $this->form_validation->set_rules('password','Password','required|max_length[20]');
-            $this->form_validation->set_rules('cpassword','Confirm Password','trim|required|matches[password]|max_length[20]');
-            $this->form_validation->set_rules('last_login_ip','Last Login IP','required|max_length[128]');
-            
-            if($this->form_validation->run() == FALSE)
-            {
-                $this->add();
-            }
-            else
-            {
-                $email = strtolower($this->security->xss_clean($this->input->post('email')));
-                $password = $this->input->post('password');
-                $lastLoginIP = $this->input->post('last_login_ip');
+        $this->load->library('form_validation');
+        $this->form_validation->set_rules('name','Name','trim|required|max_length[128]');
+        $this->form_validation->set_rules('email','Email','trim|required|valid_email|max_length[128]');
+        $this->form_validation->set_rules('password','Password','required|max_length[20]');
+        $this->form_validation->set_rules('recovery-email','Recovery Email','trim|required|max_length[128]');
+        $this->form_validation->set_rules('email-validation-pass','Email Validation Password','required|max_length[20]');
+        
+        if($this->form_validation->run() == FALSE)
+        {
+            $this->add();
+        }
+        else
+        {
+            $name = $this->input->post('name');
+            $email = strtolower($this->security->xss_clean($this->input->post('email')));
+            $password = $this->input->post('password');
+            $recoveryEmail = strtolower($this->security->xss_clean($this->input->post('recovery-email')));
+            $emailValidationPass = $this->input->post('email-validation-pass');
 
-                $lastId = $this->account_model->getLastId();
-                
-                $accountInfo = array('login_id'=>$lastId, 'email'=>$email, 'password'=>$password, 'last_login_ip'=>$lastLoginIP, 'created_date'=>date('Y-m-d H:i:s'), 'modified_date'=>date('Y-m-d H:i:s'));
-                
-                $this->load->model('account_model');
-                $result = $this->account_model->addNewAccount($accountInfo);
-                
-                if($result > 0){
-                    $this->session->set_flashdata('success', 'Add new account successfully');
-                } else {
-                    $this->session->set_flashdata('error', 'Add new account failed');
-                }
-                redirect('account');
+            $lastId = $this->account_model->getLastId();
+            
+            $accountInfo = array('login_id'=>$lastId, 'name'=>$name, 'email'=>$email, 'password'=>$password, 'recovery_email'=>$recoveryEmail, 'email_validation_pass'=>$emailValidationPass, 'created_date'=>date('Y-m-d H:i:s'), 'modified_date'=>date('Y-m-d H:i:s'));
+            
+            $this->load->model('account_model');
+            $result = $this->account_model->addNewAccount($accountInfo);
+            
+            if($result > 0){
+                $this->session->set_flashdata('success', 'Add new account successfully');
+            } else {
+                $this->session->set_flashdata('error', 'Add new account failed');
             }
-        // }
+            redirect('account');
+        }
     }
 
     
@@ -144,23 +131,16 @@ class Account extends BaseController
      */
     function edit($accountId = NULL)
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {
-            if($accountId == null)
-            {
-                redirect('account');
-            }
-            
-            $data['accountInfo'] = $this->account_model->getAccountInfo($accountId);
+        if($accountId == null)
+        {
+            redirect('account');
+        }
+        
+        $data['accountInfo'] = $this->account_model->getAccountInfo($accountId);
 
-            $this->global['pageTitle'] = 'YouTube Viewer : Edit Account';
-            
-            $this->loadViews("account/edit", $this->global, $data, NULL);
-        // }
+        $this->global['pageTitle'] = 'YouTube Viewer : Edit Account';
+        
+        $this->loadViews("account/edit", $this->global, $data, NULL);
     }
     
     
@@ -169,47 +149,43 @@ class Account extends BaseController
      */
     function editAccount()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {
-            $this->load->library('form_validation');
+        $this->load->library('form_validation');
+        
+        $accountId = $this->input->post('accountId');
+
+        $this->form_validation->set_rules('name','Name','trim|required|max_length[128]');
+        $this->form_validation->set_rules('email','Email','trim|required|valid_email|max_length[128]');
+        $this->form_validation->set_rules('password','Password','required|max_length[20]');
+        $this->form_validation->set_rules('recovery-email','Recovery Email','trim|required|max_length[128]');
+        $this->form_validation->set_rules('email-validation-pass','Email Validation Password','required|max_length[20]');
+        
+        if($this->form_validation->run() == FALSE)
+        {
+            $this->edit($accountId);
+        }
+        else
+        {
+            $name = $this->input->post('name');
+            $email = strtolower($this->security->xss_clean($this->input->post('email')));
+            $password = $this->input->post('password');
+            $recoveryEmail = strtolower($this->security->xss_clean($this->input->post('recovery-email')));
+            $emailValidationPass = $this->input->post('email-validation-pass');
             
-            $accountId = $this->input->post('accountId');
+            $accountInfo = array('name'=>$name, 'email'=>$email, 'password'=>$password, 'recovery_email'=>$recoveryEmail, 'email_validation_pass'=>$emailValidationPass, 'modified_date'=>date('Y-m-d H:i:s'));
+
+            $result = $this->account_model->editAccount($accountInfo, $accountId);
             
-            $this->form_validation->set_rules('email','Email','trim|required|valid_email|max_length[128]');
-            $this->form_validation->set_rules('password','Password','matches[cpassword]|max_length[20]');
-            $this->form_validation->set_rules('cpassword','Confirm Password','matches[password]|max_length[20]');
-            $this->form_validation->set_rules('last_login_ip','Last Login IP','required|max_length[128]');
-            
-            if($this->form_validation->run() == FALSE)
+            if($result == true)
             {
-                $this->edit($accountId);
+                $this->session->set_flashdata('success', 'Account updated successfully');
             }
             else
             {
-                $email = strtolower($this->security->xss_clean($this->input->post('email')));
-                $password = $this->input->post('password');
-                $lastLoginIP = $this->input->post('last_login_ip');
-                
-                $accountInfo = array('email'=>$email, 'password'=>$password, 'last_login_ip'=>$lastLoginIP, 'modified_date'=>date('Y-m-d H:i:s'));
-                
-                $result = $this->account_model->editAccount($accountInfo, $accountId);
-                
-                if($result == true)
-                {
-                    $this->session->set_flashdata('success', 'Account updated successfully');
-                }
-                else
-                {
-                    $this->session->set_flashdata('error', 'Account updation failed');
-                }
-                
-                redirect('account');
+                $this->session->set_flashdata('error', 'Account updation failed');
             }
-        // }
+            
+            redirect('account');
+        }
     }
 
 
@@ -219,23 +195,91 @@ class Account extends BaseController
      */
     function deleteAccount()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     echo(json_encode(array('status'=>'access')));
-        // }
-        // else
-        // {
-            $accountId = $this->input->post('accountId');
-            // $accountInfo = array('isDeleted'=>1,'updatedBy'=>$this->vendorId, 'updatedDtm'=>date('Y-m-d H:i:s'));
-            
-            $result = $this->account_model->deleteAccount($accountId);
-            
-            if ($result > 0) {
-                echo(json_encode(array('status' => TRUE)));
+        $accountId = $this->input->post('accountId');
+        // $accountInfo = array('isDeleted'=>1,'updatedBy'=>$this->vendorId, 'updatedDtm'=>date('Y-m-d H:i:s'));
+        
+        $result = $this->account_model->deleteAccount($accountId);
+        
+        if ($result > 0) {
+            echo(json_encode(array('status' => TRUE)));
+        } else {
+            echo(json_encode(array('status' => FALSE)));
+        }
+    }
+
+    //import custom function by vasudev
+    public function import(){
+        $data = array();
+        $proxData = array();
+        if($this->input->post('importSubmit'))
+        {
+            $this->form_validation->set_rules('file', 'CSV file', 'callback_file_check');
+            if($this->form_validation->run() == true)
+            {
+                $insertCount = $rowCount = $notAddCount = 0;
+                if(is_uploaded_file($_FILES['file']['tmp_name']))
+                {
+                    $this->load->library('CSVReader');
+                    $csvData = $this->csvreader->parse_csv($_FILES['file']['tmp_name']);
+                    $lastId = $this->account_model->getLastId();
+                    if(!empty($csvData)){
+                        foreach($csvData as $row)
+                        {
+                            $rowCount++;
+                            $accountData = array(
+                                'login_id' => ($lastId - 1) + $rowCount,
+                                'name' => $row['Name'],
+                                'email' => $row['Email'],
+                                'password' => $row['Password'],
+                                'recovery_email' => $row['Recovery Email'],
+                                'email_validation_pass' => $row['Email Validation Pass'],
+                                'created_date' => date('Y-m-d H:i:s'),
+                                'modified_date' => date('Y-m-d H:i:s'),
+                            );
+                            // Insert account data
+                            $insert = $this->account_model->importAccountData($accountData);
+                            
+                            if($insert){
+                                $insertCount++;
+                            }
+                        }
+                        
+                        // Status message with imported data count
+                        $notAddCount = $rowCount - $insertCount;
+                        $successMsg = 'Account imported successfully. Total Rows ('.$rowCount.') | Inserted ('.$insertCount.') | Not Inserted ('.$notAddCount.')';
+                        $this->session->set_flashdata('success', $successMsg);
+                    }
+                } else {
+                    $this->session->set_flashdata('error', 'Error on file upload, please try again.');
+                }
             } else {
-                echo(json_encode(array('status' => FALSE)));
+                $this->session->set_flashdata('error', 'Invalid file, please select only CSV file');
             }
-        // }
+        } else {
+            $this->session->set_flashdata('error', 'Please select CSV file');
+        }
+        redirect('account');
+    }
+
+    /*
+     * Callback function to check file value and type during validation
+     */
+    public function file_check($str) {
+        $allowed_mime_types = array('text/x-comma-separated-values', 'text/comma-separated-values', 'application/octet-stream', 'application/vnd.ms-excel', 'application/x-csv', 'text/x-csv', 'text/csv', 'application/csv', 'application/excel', 'application/vnd.msexcel', 'text/plain');
+        if(isset($_FILES['file']['name']) && $_FILES['file']['name'] != "") {
+            $mime = get_mime_by_extension($_FILES['file']['name']);
+            $fileAr = explode('.', $_FILES['file']['name']);
+            $ext = end($fileAr);
+            if(($ext == 'csv') && in_array($mime, $allowed_mime_types)) {
+                return true;
+            } else {
+                $this->form_validation->set_message('file_check', 'Please select only CSV file to upload');
+                return false;
+            }
+        } else {
+            $this->form_validation->set_message('file_check', 'Please select a CSV file to upload');
+            return false;
+        }
     }
     
     /**

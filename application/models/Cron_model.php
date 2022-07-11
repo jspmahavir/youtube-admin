@@ -50,8 +50,12 @@ class cron_model extends CI_Model
             }
         }
         if($method == 'comment') {
+            $commentIntervalDuration = '900';
             foreach($scheduledData as $sdata) {
-                if($sdata['completed_comment_count'] < $sdata['scheduled_comment_count']) {
+                $currentDateTime = strtotime(date('Y/m/d H:i:s'));
+                $lastCommentDateTime = strtotime($sdata['comment_add_datetime']);
+                $timeDiff = $currentDateTime - $lastCommentDateTime;
+                if($sdata['completed_comment_count'] < $sdata['scheduled_comment_count'] && $timeDiff > $commentIntervalDuration) {
                     $randomData[] = $sdata;
                 }
             }
@@ -366,37 +370,48 @@ class cron_model extends CI_Model
         $auth_token_data = $this->mongo_db->get('gmail_auth_token');
         $finalToken = array();
 
-        // $this->mongo_db->where(array('channel_id' => $channel_id, 'status' => "success"));
-        // $usedToken = $this->mongo_db->get('youtube_subscribe_stats');
+        $this->mongo_db->where(array('video_id' => $ytVideoId, 'status' => "success"));
+        $usedToken = $this->mongo_db->get('youtube_comment_stats');
 
-        // foreach($auth_token_data as $tokenData) {
-        //     $isExits = false;
-        //     if($usedToken) {
-        //         foreach($usedToken as $used) {
-        //             if($tokenData['refresh_token'] == $used['refresh_token'] && $tokenData['user_email'] == $used['user_email']) {
-        //                 $isExits = true;
-        //             }
-        //         }
-        //         if($isExits == false) {
-        //             $availableToken[] = $tokenData;
-        //         }
-        //     } else {
-        //         $availableToken[] = $tokenData;
-        //     }
-        // }
+        foreach($auth_token_data as $tokenData) {
+            $isExits = false;
+            if($usedToken) {
+                foreach($usedToken as $used) {
+                    if($tokenData['refresh_token'] == $used['refresh_token'] && $tokenData['user_email'] == $used['user_email']) {
+                        $isExits = true;
+                    }
+                }
+                if($isExits == false) {
+                    $availableToken[] = $tokenData;
+                }
+            } else {
+                $availableToken[] = $tokenData;
+            }
+        }
 
         if($count > count($auth_token_data)) {
             $count = count($auth_token_data);
         }
         if($count > 0) {
-            if($auth_token_data) {
-                $token_key = array_rand($auth_token_data, $count);
+            if($availableToken) {
+                $token_key = array_rand($availableToken, $count);
                 if(is_array($token_key)) {
                     for($i=0;$i<$count; $i++) {
-                        $finalToken[] = $auth_token_data[$token_key[$i]];
+                        $finalToken[] = $availableToken[$token_key[$i]];
                     }
                 } else {
-                    $finalToken[] = $auth_token_data[$token_key];
+                    $finalToken[] = $availableToken[$token_key];
+                }
+            } else {
+                if($auth_token_data) {
+                    $token_key = array_rand($auth_token_data, $count);
+                    if(is_array($token_key)) {
+                        for($i=0;$i<$count; $i++) {
+                            $finalToken[] = $auth_token_data[$token_key[$i]];
+                        }
+                    } else {
+                        $finalToken[] = $auth_token_data[$token_key];
+                    }
                 }
             }
             return $finalToken;
@@ -470,15 +485,15 @@ class cron_model extends CI_Model
         }
     }
 
-    public function updateCommentCounter($yt_video_id) {
-        if($yt_video_id) {
-            $this->mongo_db->where(array('video_url' => $yt_video_id));
+    public function updateCommentCounter($scheduleDataId) {
+        if($scheduleDataId) {
+            $this->mongo_db->where(array('schedule_data_id' => $scheduleDataId));
             $video_scheduleData = $this->mongo_db->get('schedule_data')[0];
             $videoCount = $video_scheduleData['completed_comment_count'] + 1;
 
             // Update Schedule for Like Counter
-            $this->mongo_db->where(array('video_url' => $yt_video_id));
-            $this->mongo_db->set(array('completed_comment_count' => $videoCount));
+            $this->mongo_db->where(array('schedule_data_id' => $scheduleDataId));
+            $this->mongo_db->set(array('completed_comment_count' => $videoCount, 'comment_add_datetime' => date('Y/m/d H:i:s')));
             $this->mongo_db->update('schedule_data');
         }
     }
@@ -516,7 +531,12 @@ class cron_model extends CI_Model
 
 
     public function getUniqeComment($ytVideoId) {
+        $this->mongo_db->where(array('video_id' => $ytVideoId, 'source' => "drafter"));
         $commentData = $this->mongo_db->get('comment_master');
+        if(empty($commentData)) {
+            $this->mongo_db->where(array('video_id' => $ytVideoId));
+            $commentData = $this->mongo_db->get('comment_master');
+        }
         $availableData = array();
         $this->mongo_db->where(array('video_id' => $ytVideoId, 'status' => "success"));
         $usedData = $this->mongo_db->get('youtube_comment_stats');
@@ -541,6 +561,40 @@ class cron_model extends CI_Model
 
         return $record['comment'];
     }
+
+    public function getUniqeGeneralComment($ytVideoId) {
+        $commentData = $this->mongo_db->get('comment_master');
+        $generalComments = array();
+        foreach($commentData as $comment) {
+            if(!isset($comment['video_id'])) {
+                $generalComments[] = $comment;
+            }
+        }
+        $availableData = array();
+        $this->mongo_db->where(array('video_id' => $ytVideoId, 'status' => "success"));
+        $usedData = $this->mongo_db->get('youtube_comment_stats');
+        foreach($generalComments as $aData) {
+            $isExits = false;
+            if($usedData) {
+                foreach($usedData as $used) {
+                    if($aData['comment'] == $used['comment']) {
+                        $isExits = true;
+                    }
+                }
+                if($isExits == false) {
+                    $availableData[] = $aData;
+                }
+            } else {
+                $availableData[] = $aData;
+            }
+        }
+
+        $key = array_rand($availableData);
+        $record = $availableData[$key];
+
+        return $record['comment'];
+    }
+    
 
     public function updateTokenInfo($data, $info)
     {
@@ -577,10 +631,18 @@ class cron_model extends CI_Model
                         }
                     }
                     if($isExits == false) {
-                        $availableVideo[]['video_url'] = $schedule['video_url'];
+                        $temp = array();
+                        $temp['video_url'] = $schedule['video_url'];
+                        $temp['total_comment'] = $schedule['total_comment'];
+                        $temp['scheduled_comments'] = $schedule['scheduled_comment_count'];
+                        $availableVideo[] = $temp;
                     }
                 } else {
-                    $availableVideo[]['video_url'] = $schedule['video_url'];
+                    $temp = array();
+                    $temp['video_url'] = $schedule['video_url'];
+                    $temp['total_comment'] = $schedule['total_comment'];
+                    $temp['scheduled_comments'] = $schedule['scheduled_comment_count'];
+                    $availableVideo[] = $temp;
                 }
             }
         }
@@ -598,8 +660,13 @@ class cron_model extends CI_Model
         $transcriptData = array();
         $this->mongo_db->where(array('status' => "success"));
         $transcriptData = $this->mongo_db->get('youtube_video_transcript');
-        
-        return $transcriptData;
+        $finalData = array();
+        foreach($transcriptData as $transcript) {
+            if($transcript['comment'] < $transcript['total_comment']) {
+                $finalData[] = $transcript;
+            }
+        }
+        return $finalData;
     }
 
     public function getRandomProxyforComments()
@@ -646,21 +713,125 @@ class cron_model extends CI_Model
     }
 
     public function addvideoComment($commentInfo) {
+        $stats_id = "";
         if($commentInfo) {
-            $inserted_data = $this->mongo_db->insert('youtube_video_comment', $commentInfo);
-            return $stats_id = $inserted_data['_id']->{'$id'};
+            $this->mongo_db->where(array('comment' => $commentInfo['comment'], 'video_id' => $commentInfo['video_id']));
+            $isAvailable = $this->mongo_db->get('comment_master');
+            if(empty($isAvailable)) {
+                $inserted_data = $this->mongo_db->insert('comment_master', $commentInfo);
+                $stats_id = $inserted_data['_id']->{'$id'};
+            }
         }
+        return $stats_id;
     }
 
     function getCommentLastId()
     {
         $this->mongo_db->order_by(array('_id' => -1))->limit(1);
-        $last_id = $this->mongo_db->get('youtube_video_comment');
+        $last_id = $this->mongo_db->get('comment_master');
         if ($last_id) {
             $add_id = $last_id[0]['comment_id'] + 1;
             return $add_id;
         } else {
             return '1';
+        }
+    }
+
+
+    function updateTranscriptCommentCounter($tid, $wfid) {
+        $this->mongo_db->where(array('_id' => new MongoDB\BSON\ObjectID($tid)));
+        $videoTranscript = $this->mongo_db->get('youtube_video_transcript')[0];
+        // $commentCount = 0;
+        // if ($wfid === '82') { //if comment type is question then, add 3
+            $commentCount = $videoTranscript['comment'] + 1;
+        // } else {
+        //     $commentCount = $videoTranscript['comment'] + 6;
+        // }
+
+        $updateCount = 0;
+        //update comment counter to stop 
+        $this->mongo_db->where(array('_id' => new MongoDB\BSON\ObjectID($tid)));
+        if ($wfid === '110') {
+            $updateCount = $videoTranscript['comment_ratio'] - 1;
+            $this->mongo_db->set(array('comment' => $commentCount, 'comment_ratio' => $updateCount));
+        } else if ($wfid === '82') {
+            $updateCount = $videoTranscript['question_ratio'] - 1;
+            $this->mongo_db->set(array('comment' => $commentCount, 'question_ratio' => $updateCount));
+        } else if ($wfid === '142') {
+            $updateCount = $videoTranscript['opinion_ratio'] - 1;
+            $this->mongo_db->set(array('comment' => $commentCount, 'opinion_ratio' => $updateCount));
+        }
+        $this->mongo_db->update('youtube_video_transcript');
+
+    }
+
+    function getVideoTranscript() {
+        $this->mongo_db->where(array('status' => "success"));
+        $transcriptData = $this->mongo_db->get('youtube_video_transcript');
+        return $transcriptData;
+    }
+
+    public function getVideoTranscriptForComment() {
+        $transcriptData = array();
+        $this->mongo_db->where(array('status' => "success"));
+        $transcriptData = $this->mongo_db->get('youtube_video_transcript');
+        $finalData = array();
+        foreach($transcriptData as $transcript) {
+            if($transcript['comment'] < $transcript['total_comment']) {
+                $finalData[] = $transcript;
+            }
+        }
+        return $finalData;
+    }
+
+    function updateTranscriptwithjson($stringAry, $tid) {
+        if($tid) {
+            $this->mongo_db->where(array('_id' => new MongoDB\BSON\ObjectID($tid)));
+            $this->mongo_db->set(array('commentArr' => $stringAry));
+            $this->mongo_db->update('youtube_video_transcript');
+        }
+    }
+
+    //add workflow execution for get id of added comments in drafter
+    public function addWorkflowExecution($transid, $wfid, $exid, $request, $response) {
+        if($transid && $wfid && $exid) {
+            $commentType = '';
+            if ($wfid === '110') {
+                $commentType = '6 comments added';
+            } else if ($wfid === '82') {
+                $commentType = '3 questions added';
+            } else if ($wfid === '142') {
+                $commentType = '6 opinions added';
+            }
+            $data = array('execution_id' => $exid, 'transcript_id' => $transid, 'workflow_id' => $wfid, 'ex_message' => $commentType, 'request' => $request, 'response' => $response, 'status' => 'remaining', 'created_date' => date('Y/m/d H:i:s'));
+            $this->mongo_db->insert('workflow_execution_stats', $data);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    //get workflow execution data
+    public function getWorkflowExecution() {
+        $executionData = array();
+        $this->mongo_db->where(array('status' => 'remaining'));
+        $executionData = $this->mongo_db->get('workflow_execution_stats');
+        return $executionData;
+    }
+
+    //get transcript data by id
+    public function getVideoTranscriptById($trid) {
+        $this->mongo_db->where(array('_id' => new MongoDB\BSON\ObjectID($trid)));
+        $transciptData = $this->mongo_db->get('youtube_video_transcript');
+        return $transciptData;
+    }
+
+    //update workflow execution status
+    function updateWorkflowExStatus($wfobjid) {
+        if($wfobjid) {
+            $this->mongo_db->where(array('_id' => new MongoDB\BSON\ObjectID($wfobjid)));
+            $this->mongo_db->set(array('status' => 'completed'));
+            $this->mongo_db->update('workflow_execution_stats');
         }
     }
 }

@@ -23,7 +23,8 @@ class Proxy extends BaseController
      */
     public function index()
     {
-        redirect('proxy/');
+        $this->global['pageTitle'] = 'YouTube Viewer : Proxy List';
+        $this->loadViews("proxy/list", $this->global, NULL, NULL);
     }
     
     /**
@@ -31,27 +32,26 @@ class Proxy extends BaseController
      */
     function listing()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {        
-            $searchText = $this->security->xss_clean($this->input->post('searchText'));
-            $data['searchText'] = $searchText;
-            
-            $this->load->library('pagination');
-            
-            $count = $this->proxy_model->proxyListingCount($searchText);
-
-            $returns = $this->paginationCompress("proxy/", $count, 10);
-            
-            $data['proxyRecords'] = $this->proxy_model->proxyListing($searchText, $returns["page"], $returns["segment"]);
-            
-            $this->global['pageTitle'] = 'YouTube Viewer : Proxy List';
-            
-            $this->loadViews("proxy/list", $this->global, $data, NULL);
-        // }
+        $data = $row = array();
+        
+        // Fetch proxy's records
+        $proData = $this->proxy_model->getRows($_REQUEST);
+        
+        $i = $_REQUEST['start'];
+        foreach($proData as $proxy){
+            $i++;
+            $created = date( 'jS M Y', strtotime($proxy['created_date']));
+            $data[] = array($proxy['proxy_master_id'], $proxy['proxy_url'], $proxy['proxy_port'], $proxy['username'], $created, $proxy['proxy_master_id']);
+        }
+        $output = array(
+            "draw" => $_REQUEST['draw'],
+            "recordsTotal" => $this->proxy_model->countAll(),
+            "recordsFiltered" => $this->proxy_model->countFiltered($_REQUEST),
+            "data" => $data,
+        );
+        
+        // Output to JSON format
+        echo json_encode($output);
     }
 
     /**
@@ -59,19 +59,11 @@ class Proxy extends BaseController
      */
     function add()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {
-            $this->load->model('proxy_model');
-            // $data['roles'] = $this->proxy_model->getServerRoles();
-            
-            $this->global['pageTitle'] = 'YouTube Viewer : Add New Proxy';
+        $this->load->model('proxy_model');
 
-            $this->loadViews("proxy/add", $this->global, NULL, NULL);
-        // }
+        $this->global['pageTitle'] = 'YouTube Viewer : Add New Proxy';
+
+        $this->loadViews("proxy/add", $this->global, NULL, NULL);
     }
     
     /**
@@ -79,51 +71,44 @@ class Proxy extends BaseController
      */
     function addNewProxy()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {
-            $this->load->library('form_validation');
+        $this->load->library('form_validation');
+        
+        $this->form_validation->set_rules('proxy_url','Proxy URL','trim|required|max_length[128]');
+        // $this->form_validation->set_rules('email','Email','trim|required|valid_email|max_length[128]');
+        $this->form_validation->set_rules('proxy_port','Proxy Port','required|min_length[5]');
+        $this->form_validation->set_rules('username','Username','trim|required|max_length[128]');
+        $this->form_validation->set_rules('password','Password','required|max_length[20]');
+        $this->form_validation->set_rules('cpassword','Confirm Password','trim|required|matches[password]|max_length[20]');
+        // $this->form_validation->set_rules('role','Role','trim|required|numeric');
+        // $this->form_validation->set_rules('mobile','Mobile Number','required|min_length[10]');
+        
+        if($this->form_validation->run() == FALSE)
+        {
+            $this->add();
+        }
+        else
+        {
+            // $email = strtolower($this->security->xss_clean($this->input->post('email')));
+            $proxyUrl = $this->input->post('proxy_url');
+            $proxyPort = $this->security->xss_clean($this->input->post('proxy_port'));
+            $username = ucwords(strtolower($this->security->xss_clean($this->input->post('username'))));
+            $password = $this->input->post('password');
+            // $mobile = $this->security->xss_clean($this->input->post('mobile'));
+            // $isAdmin = $this->input->post('isAdmin');
+            $lastId = $this->proxy_model->getLastId();
             
-            $this->form_validation->set_rules('proxy_url','Proxy URL','trim|required|max_length[128]');
-            // $this->form_validation->set_rules('email','Email','trim|required|valid_email|max_length[128]');
-            $this->form_validation->set_rules('proxy_port','Proxy Port','required|min_length[5]');
-            $this->form_validation->set_rules('username','Username','trim|required|max_length[128]');
-            $this->form_validation->set_rules('password','Password','required|max_length[20]');
-            $this->form_validation->set_rules('cpassword','Confirm Password','trim|required|matches[password]|max_length[20]');
-            // $this->form_validation->set_rules('role','Role','trim|required|numeric');
-            // $this->form_validation->set_rules('mobile','Mobile Number','required|min_length[10]');
+            $proxyInfo = array('proxy_master_id'=>$lastId, 'proxy_url'=>$proxyUrl, 'proxy_port'=>(int)$proxyPort, 'username'=>$username, 'password'=>getHashedPassword($password), 'created_date'=>date('Y-m-d H:i:s'), 'modified_date'=>date('Y-m-d H:i:s'));
             
-            if($this->form_validation->run() == FALSE)
-            {
-                $this->add();
+            $this->load->model('proxy_model');
+            $result = $this->proxy_model->addNewProxy($proxyInfo);
+            
+            if($result > 0){
+                $this->session->set_flashdata('success', 'Add new proxy successfully');
+            } else {
+                $this->session->set_flashdata('error', 'Add new proxy failed');
             }
-            else
-            {
-                // $email = strtolower($this->security->xss_clean($this->input->post('email')));
-                $proxyUrl = $this->input->post('proxy_url');
-                $proxyPort = $this->security->xss_clean($this->input->post('proxy_port'));
-                $username = ucwords(strtolower($this->security->xss_clean($this->input->post('username'))));
-                $password = $this->input->post('password');
-                // $mobile = $this->security->xss_clean($this->input->post('mobile'));
-                // $isAdmin = $this->input->post('isAdmin');
-                $lastId = $this->proxy_model->getLastId();
-                
-                $proxyInfo = array('proxy_master_id'=>$lastId, 'proxy_url'=>$proxyUrl, 'proxy_port'=>(int)$proxyPort, 'username'=>$username, 'password'=>getHashedPassword($password), 'created_date'=>date('Y-m-d H:i:s'), 'modified_date'=>date('Y-m-d H:i:s'));
-                
-                $this->load->model('proxy_model');
-                $result = $this->proxy_model->addNewProxy($proxyInfo);
-                
-                if($result > 0){
-                    $this->session->set_flashdata('success', 'Add new proxy successfully');
-                } else {
-                    $this->session->set_flashdata('error', 'Add new proxy failed');
-                }
-                redirect('proxy/listing');
-            }
-        // }
+            redirect('proxy');
+        }
     }
 
     
@@ -133,84 +118,69 @@ class Proxy extends BaseController
      */
     function edit($proxyMasterId = NULL)
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {
-            if($proxyMasterId == null)
-            {
-                redirect('proxy/listing');
-            }
-            
-            $data['proxyInfo'] = $this->proxy_model->getProxyInfo($proxyMasterId);
+        if($proxyMasterId == null)
+        {
+            redirect('proxy');
+        }
 
-            $this->global['pageTitle'] = 'YouTube Viewer : Edit Proxy';
-            
-            $this->loadViews("proxy/edit", $this->global, $data, NULL);
-        // }
+        $data['proxyInfo'] = $this->proxy_model->getProxyInfo($proxyMasterId);
+
+        $this->global['pageTitle'] = 'YouTube Viewer : Edit Proxy';
+
+        $this->loadViews("proxy/edit", $this->global, $data, NULL);
     }
-    
     
     /**
      * This function is used to edit the proxy information
      */
     function editProxy()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     $this->loadThis();
-        // }
-        // else
-        // {
-            $this->load->library('form_validation');
+        $this->load->library('form_validation');
 
-            $proxyMasterId = $this->input->post('proxyMasterId');
+        $proxyMasterId = $this->input->post('proxyMasterId');
+        
+        $this->form_validation->set_rules('proxy_url','Proxy URL','trim|required|max_length[128]');
+        // $this->form_validation->set_rules('email','Email','trim|required|valid_email|max_length[128]');
+        $this->form_validation->set_rules('proxy_port','Proxy Port','required|min_length[5]');
+        $this->form_validation->set_rules('username','Username','trim|required|max_length[128]');
+        $this->form_validation->set_rules('password','Password','matches[cpassword]|max_length[20]');
+        $this->form_validation->set_rules('cpassword','Confirm Password','matches[password]|max_length[20]');
+        
+        if($this->form_validation->run() == FALSE)
+        {
+            $this->edit($proxyMasterId);
+        }
+        else
+        {
+            $proxyUrl = $this->input->post('proxy_url');
+            $proxyPort = $this->security->xss_clean($this->input->post('proxy_port'));
+            $username = ucwords(strtolower($this->security->xss_clean($this->input->post('username'))));
+            $password = $this->input->post('password');
+
+            $proxyInfo = array();
             
-            $this->form_validation->set_rules('proxy_url','Proxy URL','trim|required|max_length[128]');
-            // $this->form_validation->set_rules('email','Email','trim|required|valid_email|max_length[128]');
-            $this->form_validation->set_rules('proxy_port','Proxy Port','required|min_length[5]');
-            $this->form_validation->set_rules('username','Username','trim|required|max_length[128]');
-            $this->form_validation->set_rules('password','Password','matches[cpassword]|max_length[20]');
-            $this->form_validation->set_rules('cpassword','Confirm Password','matches[password]|max_length[20]');
-            
-            if($this->form_validation->run() == FALSE)
+            if(empty($password))
             {
-                $this->edit($proxyMasterId);
+                $proxyInfo = array('proxy_url'=>$proxyUrl, 'proxy_port'=>(int)$proxyPort, 'username'=>$username, 'modified_date'=>date('Y-m-d H:i:s'));
             }
             else
             {
-                $proxyUrl = $this->input->post('proxy_url');
-                $proxyPort = $this->security->xss_clean($this->input->post('proxy_port'));
-                $username = ucwords(strtolower($this->security->xss_clean($this->input->post('username'))));
-                $password = $this->input->post('password');
-
-                $proxyInfo = array();
-                
-                if(empty($password))
-                {
-                    $proxyInfo = array('proxy_url'=>$proxyUrl, 'proxy_port'=>(int)$proxyPort, 'username'=>$username, 'modified_date'=>date('Y-m-d H:i:s'));
-                }
-                else
-                {
-                    $proxyInfo = array('proxy_url'=>$proxyUrl, 'proxy_port'=>(int)$proxyPort, 'username'=>$username, 'password'=>getHashedPassword($password), 'modified_date'=>date('Y-m-d H:i:s'));
-                }
-                
-                $result = $this->proxy_model->editProxy($proxyInfo, $proxyMasterId);
-                
-                if($result == true)
-                {
-                    $this->session->set_flashdata('success', 'Proxy updated successfully');
-                }
-                else
-                {
-                    $this->session->set_flashdata('error', 'Proxy updation failed');
-                }
-                
-                redirect('proxy/listing');
+                $proxyInfo = array('proxy_url'=>$proxyUrl, 'proxy_port'=>(int)$proxyPort, 'username'=>$username, 'password'=>getHashedPassword($password), 'modified_date'=>date('Y-m-d H:i:s'));
             }
-        // }
+            
+            $result = $this->proxy_model->editProxy($proxyInfo, $proxyMasterId);
+            
+            if($result == true)
+            {
+                $this->session->set_flashdata('success', 'Proxy updated successfully');
+            }
+            else
+            {
+                $this->session->set_flashdata('error', 'Proxy updation failed');
+            }
+            
+            redirect('proxy');
+        }
     }
 
 
@@ -220,23 +190,16 @@ class Proxy extends BaseController
      */
     function deleteProxy()
     {
-        // if(!$this->isAdmin())
-        // {
-        //     echo(json_encode(array('status'=>'access')));
-        // }
-        // else
-        // {
-            $proxyMasterId = $this->input->post('proxyMasterId');
-            // $serverInfo = array('isDeleted'=>1,'updatedBy'=>$this->vendorId, 'updatedDtm'=>date('Y-m-d H:i:s'));
-            
-            $result = $this->proxy_model->deleteProxy($proxyMasterId);
-            
-            if ($result > 0) {
-                echo(json_encode(array('status' => TRUE)));
-            } else {
-                echo(json_encode(array('status' => FALSE)));
-            }
-        // }
+        $proxyMasterId = $this->input->post('proxyMasterId');
+        // $serverInfo = array('isDeleted'=>1,'updatedBy'=>$this->vendorId, 'updatedDtm'=>date('Y-m-d H:i:s'));
+        
+        $result = $this->proxy_model->deleteProxy($proxyMasterId);
+        
+        if ($result > 0) {
+            echo(json_encode(array('status' => TRUE)));
+        } else {
+            echo(json_encode(array('status' => FALSE)));
+        }
     }
 
     /**
@@ -302,7 +265,7 @@ class Proxy extends BaseController
         } else {
             $this->session->set_flashdata('error', 'Please select CSV file');
         }
-        redirect('proxy/listing');
+        redirect('proxy');
     }
 
     /*

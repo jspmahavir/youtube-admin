@@ -829,8 +829,70 @@ Class Mongo_db{
 		{
 			$value .= "$";
 		}
-		$regex = "/$value/$flags";
-		$this->wheres[$field] = new MongoRegex($regex);
+		// $regex = "/$value/$flags"; //commented by vasudev dantani
+		$this->wheres[$field] = new MongoDB\BSON\Regex($value, $flags);
+		
+		return ($this);
+	}
+
+	/**
+	* --------------------------------------------------------------------------------
+	* Or Like Custom By VASUDEV DANTANI
+	* --------------------------------------------------------------------------------
+	*
+	* Get the documents where the (string) value of a $field is like a value. The defaults
+	* allow for a case-insensitive search.
+	*
+	* @param $flags
+	* Allows for the typical regular expression flags:
+	* i = case insensitive
+	* m = multiline
+	* x = can contain comments
+	* l = locale
+	* s = dotall, "." matches everything, including newlines
+	* u = match unicode
+	*
+	* @param $enable_start_wildcard
+	* If set to anything other than TRUE, a starting line character "^" will be prepended
+	* to the search value, representing only searching for a value at the start of
+	* a new line.
+	*
+	* @param $enable_end_wildcard
+	* If set to anything other than TRUE, an ending line character "$" will be appended
+	* to the search value, representing only searching for a value at the end of
+	* a line.
+	*
+	* @usage : $this->mongo_db->or_like('foo', 'bar', 'im', FALSE, TRUE);
+	*/
+	public function or_like($field = "", $value = "", $flags = "i", $enable_start_wildcard = TRUE, $enable_end_wildcard = TRUE)
+	{
+		if (empty($field))
+		{
+			show_error("Mongo field is require to perform like query.", 500);
+		}
+
+		if (empty($value))
+		{
+			show_error("Mongo field's value is require to like query.", 500);
+		}
+		
+		$field = (string) trim($field);
+		//$this->_w($field);
+		$value = (string) trim($value);
+		$value = quotemeta($value);
+		if ($enable_start_wildcard !== TRUE)
+		{
+			$value = "^" . $value;
+		}
+		if ($enable_end_wildcard !== TRUE)
+		{
+			$value .= "$";
+		}
+		if ( ! isset($this->wheres['$or']) || ! is_array($this->wheres['$or']))
+		{
+			$this->wheres['$or'] = array();
+		}
+		$this->wheres['$or'][] = array($field=> new MongoDB\BSON\Regex($value, $flags));
 		return ($this);
 	}
 

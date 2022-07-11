@@ -58,26 +58,40 @@ $route['translate_uri_dashes'] = FALSE;
 /*********** USER DEFINED ROUTES *******************/
 
 $route['loginMe'] = 'login/loginMe';
-$route['dashboard'] = 'user';
-$route['logout'] = 'user/logout';
-$route['servers'] = 'server/listing';
-$route['servers/(:num)'] = "server/listing/$1";
-$route['proxy'] = 'proxy/listing';
-$route['proxy/(:num)'] = "proxy/listing/$1";
-$route['schedule'] = 'schedule/listing';
-$route['schedule/(:num)'] = "schedule/listing/$1";
-$route['schedule-detail'] = "schedule/detail";
-$route['schedule-detail/(:num)'] = "schedule/detail/$1";
-$route['client'] = 'client/listing';
-$route['client/(:num)'] = "client/listing/$1";
-$route['account'] = 'account/listing';
-$route['account/(:num)'] = "account/listing/$1";
-$route['app'] = 'app/listing';
-$route['app/(:num)'] = "app/listing/$1";
-$route['gmail-auth/add'] = 'gmailauth/add';
-$route['gmail-auth'] = 'gmailauth/listing';
-$route['gmail-auth/(:num)'] = "gmailauth/listing/$1";
-$route['gmail-auth/delete'] = 'gmailauth/delete';
+$route['logout'] = 'dashboard/logout';
+
+$route['profile'] = "dashboard/profile";
+$route['profile/(:any)'] = "dashboard/profile/$1";
+$route['profileUpdate'] = "dashboard/profileUpdate";
+$route['profileUpdate/(:any)'] = "dashboard/profileUpdate/$1";
+
+$route['server/'] = 'server/listing';
+// $route['servers/(:num)'] = "server/listing/$1";
+
+$route['proxy/'] = 'proxy/listing';
+// $route['proxy/(:num)'] = "proxy/listing/$1";
+
+$route['schedule/'] = 'schedule/listing';
+// $route['schedule/(:num)'] = "schedule/listing/$1";
+$route['schedule-detail'] = "scheduledetail/detail";
+$route['comment-detail'] = "commentdetail/detail";
+// $route['schedule-detail/(:num)'] = "schedule/detail/$1";
+
+$route['client/'] = 'client/listing';
+// $route['client/(:num)'] = "client/listing/$1";
+
+$route['account/'] = "account/listing";
+// $route['account/(:any)/(:any)'] = "account/listing/$1/$2";
+// $route['account/edit/(:num)'] = 'account/edit/$1';
+
+$route['app/'] = 'app/listing';
+// $route['app/(:num)'] = "app/listing/$1";
+
+// $route['gmail-auth/add'] = 'gmailauth/add';
+$route['gmailauth/'] = 'gmailauth/listing';
+// $route['gmail-auth/(:num)'] = "gmailauth/listing/$1";
+// $route['gmail-auth/delete'] = 'gmailauth/delete';
+
 $route['userListing'] = 'user/userListing';
 $route['userListing/(:num)'] = "user/userListing/$1";
 $route['addNew'] = "user/addNew";
@@ -86,14 +100,11 @@ $route['editOld'] = "user/editOld";
 $route['editOld/(:num)'] = "user/editOld/$1";
 $route['editUser'] = "user/editUser";
 $route['deleteUser'] = "user/deleteUser";
-$route['profile'] = "user/profile";
-$route['profile/(:any)'] = "user/profile/$1";
-$route['profileUpdate'] = "user/profileUpdate";
-$route['profileUpdate/(:any)'] = "user/profileUpdate/$1";
 
 $route['loadChangePass'] = "user/loadChangePass";
 $route['changePassword'] = "user/changePassword";
 $route['changePassword/(:any)'] = "user/changePassword/$1";
+
 $route['pageNotFound'] = "user/pageNotFound";
 // $route['checkEmailExists'] = "app/checkEmailExists";
 $route['login-history'] = "user/loginHistoy";
@@ -111,14 +122,19 @@ $route['roleListing'] = "roles/roleListing";
 $route['roleListing/(:num)'] = "roles/roleListing/$1";
 $route['roleListing/(:num)/(:num)'] = "roles/roleListing/$1/$2";
 
-$route['comment'] = 'comment/listing';
-$route['comment/(:num)'] = "comment/listing/$1";
+$route['comment/'] = 'comment/listing';
+// $route['comment/(:num)'] = "comment/listing/$1";
 $route['schedule-comment-detail'] = "schedule/commentdetail";
 $route['schedule-comment-detail/(:num)'] = "schedule/commentdetail/$1";
+
 $route['schedule-like-detail'] = "schedule/likedetail";
 $route['schedule-like-detail/(:num)'] = "schedule/likedetail/$1";
+
 $route['schedule-subscribe-detail'] = "schedule/subscribedetail";
 $route['schedule-subscribe-detail/(:num)'] = "schedule/subscribedetail/$1";
+
+$route['configuration'] = 'configuration/listing';
+$route['configuration/(:num)'] = "configuration/listing/$1";
 
 $route['proxyapi'] = 'proxyapi';
 $route['scheduleapi'] = 'scheduleapi';

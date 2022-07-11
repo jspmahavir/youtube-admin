@@ -50,60 +50,24 @@
               <div class="box">
                 <div class="box-header">
                     <h3 class="box-title">Client List</h3>
-                    <div class="box-tools">
-                        <form action="<?php echo base_url() ?>client" method="POST" id="searchList">
-                            <div class="input-group">
-                              <input type="text" name="searchText" value="<?php echo $searchText; ?>" class="form-control input-sm pull-right" style="width: 150px;" placeholder="Search"/>
-                              <div class="input-group-btn">
-                                <button class="btn btn-sm btn-default searchList"><i class="fa fa-search"></i></button>
-                              </div>
-                            </div>
-                        </form>
-                    </div>
                 </div><!-- /.box-header -->
                 <div class="box-body table-responsive no-padding">
-                  <table class="table table-hover">
-                    <tr>
-                        <th>Client Name</th>
-                        <th>API Key</th>
-                        <th>Server IP</th>
-                        <th>View Support</th>
-                        <th>Comment Support</th>
-                        <th>Like Support</th>
-                        <th>Subscibe Support</th>
-                        <th>Created On</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                    <?php
-                    if(!empty($clientRecords))
-                    {
-                        foreach($clientRecords as $record)
-                        {
-                    ?>
-                    <tr>
-                        <td><?php echo $record['client_name'] ?></td>
-                        <td><?php echo $record['api_key'] ?></td>
-                        <td><?php echo $record['whitelisted_server_ip'] ?></td>
-                        <td><?= ($record['ytview_support'] == 1) ? 'Yes':'No'; ?></td>
-                        <td><?= ($record['ytcomment_support'] == 1) ? 'Yes':'No'; ?></td>
-                        <td><?= ($record['ytlike_support'] == 1) ? 'Yes':'No'; ?></td>
-                        <td><?= ($record['ytsubscribe_support'] == 1) ? 'Yes':'No'; ?></td>
-                        <td><?php echo date("d-m-Y", strtotime($record['created_date'])) ?></td>
-                        <td class="text-center">
-                            <a class="btn btn-sm btn-info" href="<?php echo base_url().'client/edit/'.$record['authentication_id']; ?>" title="Edit"><i class="fa fa-pencil"></i></a>
-                            <a class="btn btn-sm btn-danger deleteClient" href="#" data-clientid="<?php echo $record['authentication_id']; ?>" title="Delete"><i class="fa fa-trash"></i></a>
-                        </td>
-                    </tr>
-                    <?php
-                        }
-                    }
-                    ?>
-                  </table>
-                  
+                    <table id="cli_data_table" class="display table table-hover" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Client Name</th>
+                                <th>API Key</th>
+                                <th>Server IP</th>
+                                <th>View Support</th>
+                                <th>Comment Support</th>
+                                <th>Like Support</th>
+                                <th>Subscibe Support</th>
+                                <th>Created On</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                    </table>
                 </div><!-- /.box-body -->
-                <div class="box-footer clearfix">
-                    <?php echo $this->pagination->create_links(); ?>
-                </div>
               </div><!-- /.box -->
             </div>
         </div>
@@ -112,12 +76,19 @@
 <!-- <script type="text/javascript" src="<?php //echo base_url(); ?>assets/js/common.js" charset="utf-8"></script> -->
 <script type="text/javascript" charset="utf-8">
     jQuery(document).ready(function(){
-        jQuery('ul.pagination li a').click(function (e) {
-            e.preventDefault();
-            var link = jQuery(this).get(0).href;
-            var value = link.substring(link.lastIndexOf('/') + 1);
-            jQuery("#searchList").attr("action", baseURL + "client/" + value);
-            jQuery("#searchList").submit();
+        jQuery('#cli_data_table').DataTable({
+            processing: true,
+            serverSide: true,
+            order: [[7, 'desc']],
+            ajax: '<?php echo base_url('client/listing'); ?>',
+            columnDefs: [{
+                "targets": [-1],
+                "orderable": false,
+                "data": null,
+                "render": function(data,type,full,meta)
+                { return '<a class="btn btn-sm btn-info" href="client/edit/'+data[8]+'" title="Edit"><i class="fa fa-pencil"></i></a>&nbsp&nbsp<a class="btn btn-sm btn-danger deleteClient" href="#" data-clientid='+data[8]+' title="Delete"><i class="fa fa-trash"></i></a>'
+                }
+            }]
         });
 
         //delete client start

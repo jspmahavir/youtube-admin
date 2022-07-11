@@ -16,13 +16,18 @@
     <!-- AdminLTE Skins. Choose a skin from the css/skins 
          folder instead of downloading all of them to reduce the load. -->
     <link href="<?php echo base_url(); ?>assets/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
+    <!-- DataTables CSS library -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.12.1/css/jquery.dataTables.min.css"/>
+    <!-- DataTables JS library -->
+    <script src="<?php echo base_url(); ?>assets/dist/js/jquery-3.3.1.js"></script>
+    <script src = "http://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js" defer ></script>
     <style>
     	.error{
     		color:red;
     		font-weight: normal;
     	}
     </style>
-    <script src="<?php echo base_url(); ?>assets/bower_components/jquery/dist/jquery.min.js"></script>
+    <!-- <script src="<?php echo base_url(); ?>assets/bower_components/jquery/dist/jquery.min.js"></script> -->
     <script type="text/javascript">
         var baseURL = "<?php echo base_url(); ?>";
     </script>
@@ -173,7 +178,7 @@
             // {
             ?>
             <li>
-              <a href="<?php echo base_url(); ?>servers">
+              <a href="<?php echo base_url(); ?>server">
                 <i class="fa fa-server"></i>
                 <span>Server</span>
               </a>
@@ -209,7 +214,7 @@
               </a>
             </li>
             <li>
-              <a href="<?php echo base_url(); ?>gmail-auth">
+              <a href="<?php echo base_url(); ?>gmailauth">
                 <i class="fa fa-key"></i>
                 <span>Gmail Authorization</span>
               </a>
@@ -218,6 +223,12 @@
               <a href="<?php echo base_url(); ?>comment">
                 <i class="fa fa-comment"></i>
                 <span>Comment</span>
+              </a>
+            </li>
+            <li>
+              <a href="<?php echo base_url(); ?>configuration">
+                <i class="fa fa-cog"></i>
+                <span>Configuration</span>
               </a>
             </li>
             <!-- <li>

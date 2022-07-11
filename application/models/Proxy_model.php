@@ -6,66 +6,65 @@
  */
 class Proxy_model extends CI_Model
 {
-    /**
-     * This function is used to get the proxy listing count
-     * @param string $searchText : This is optional search text
-     * @return number $count : This is row count
+    function __construct() {
+        // Set orderable column fields
+        $this->column_order = array('proxy_master_id','proxy_url','proxy_port','username','created_date');
+        // Set searchable column fields
+        $this->column_search = array('proxy_master_id','proxy_url','proxy_port','username','created_date');
+        // Set default order
+        $this->order = array('proxy_master_id' => 'asc');
+    }
+
+    /*
+     * Fetch proxy data from the database
+     * @param $_POST filter data based on the posted parameters
      */
-    function proxyListingCount($searchText = '')
-    {
-        if(!empty($searchText)) {
-            $this->mongo_db->where('proxy_port', 'regexp', '/^'.$searchText.'/i');
+    public function getRows($requestData){
+        $this->_get_datatables_query($requestData);
+        if($requestData['length'] != -1){
+            $this->mongo_db->limit($requestData['length'])->offset($requestData['start']);
+            // $this->db->limit($requestData['length'], $requestData['start']);
         }
         $result = $this->mongo_db->get('proxy_master');
-
-        // echo "<pre>";
-        // print_r($result);
-
-        // $this->db->select('BaseTbl.proxyId, BaseTbl.email, BaseTbl.name, BaseTbl.mobile, BaseTbl.isAdmin, BaseTbl.createdDtm, Role.role');
-        // $this->db->from('tbl_proxys as BaseTbl');
-        // $this->db->join('tbl_roles as Role', 'Role.roleId = BaseTbl.roleId','left');
-        // if(!empty($searchText)) {
-        //     $likeCriteria = "(BaseTbl.email  LIKE '%".$searchText."%'
-        //                     OR  BaseTbl.name  LIKE '%".$searchText."%'
-        //                     OR  BaseTbl.mobile  LIKE '%".$searchText."%')";
-        //     $this->db->where($likeCriteria);
-        // }
-        // $this->db->where('BaseTbl.isDeleted', 0);
-        // // $this->db->where('BaseTbl.roleId !=', 1);
-        // $query = $this->db->get();
-        
+        return $result;
+    }
+    
+    /*
+     * Count all records
+     */
+    public function countAll(){
+        $result = $this->mongo_db->get('proxy_master');
         return count($result);
     }
     
-    /**
-     * This function is used to get the proxy listing count
-     * @param string $searchText : This is optional search text
-     * @param number $page : This is pagination offset
-     * @param number $segment : This is pagination limit
-     * @return array $result : This is result
+    /*
+     * Count records based on the filter params
+     * @param $_POST filter data based on the posted parameters
      */
-    function proxyListing($searchText = '', $page, $segment)
-    {
-        $this->mongo_db->order_by(array('proxy_master_id'=>'DESC'))->limit($page)->offset($segment);
-        $result = $this->mongo_db->get('proxy_master');
-
-        // $this->db->select('BaseTbl.proxyId, BaseTbl.email, BaseTbl.name, BaseTbl.mobile, BaseTbl.isAdmin, BaseTbl.createdDtm, Role.role');
-        // $this->db->from('tbl_proxys as BaseTbl');
-        // $this->db->join('tbl_roles as Role', 'Role.roleId = BaseTbl.roleId','left');
-        // if(!empty($searchText)) {
-        //     $likeCriteria = "(BaseTbl.email  LIKE '%".$searchText."%'
-        //                     OR  BaseTbl.name  LIKE '%".$searchText."%'
-        //                     OR  BaseTbl.mobile  LIKE '%".$searchText."%')";
-        //     $this->db->where($likeCriteria);
-        // }
-        // $this->db->where('BaseTbl.isDeleted', 0);
-        // $this->db->where('BaseTbl.roleId !=', 1);
-        // $this->db->order_by('BaseTbl.proxyId', 'DESC');
-        // $this->db->limit($page, $segment);
-        // $query = $this->db->get();
-        
-        // $result = $query->result();
-        return $result;
+    public function countFiltered($requestData){
+        $this->_get_datatables_query($requestData);
+        $query = $this->mongo_db->get('proxy_master');
+        return count($query);
+    }
+    
+    /*
+     * Perform the SQL queries needed for an server-side processing requested
+     * @param $_POST filter data based on the posted parameters
+     */
+    private function _get_datatables_query($requestData){
+        // loop searchable columns 
+        foreach($this->column_search as $item){
+            if($requestData['search']['value']){
+                $this->mongo_db->or_like($item, $requestData['search']['value'], 'im', TRUE, TRUE);
+            }
+        }
+         
+        if(isset($requestData['order'])){
+            $this->mongo_db->order_by(array($this->column_order[$requestData['order']['0']['column']] => $requestData['order']['0']['dir']));
+        }else if(isset($this->order)){
+            $order = $this->order;
+            $this->mongo_db->order_by(array(key($order) => $order[key($order)]));
+        }
     }
     
     /**

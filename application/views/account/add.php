@@ -8,14 +8,10 @@
     </section>
     
     <section class="content">
-    
         <div class="row">
             <!-- left column -->
             <div class="col-md-8">
               <!-- general form elements -->
-                
-                
-                
                 <div class="box box-primary">
                     <div class="box-header">
                         <h3 class="box-title">Enter Account Details</h3>
@@ -27,10 +23,15 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
+                                        <label for="name">Name</label>
+                                        <input type="text" class="form-control required" value="<?php echo set_value('name'); ?>" id="name" name="name" maxlength="128">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
                                         <label for="email">Email</label>
                                         <input type="text" class="form-control required" value="<?php echo set_value('email'); ?>" id="email" name="email" maxlength="128">
                                     </div>
-                                    
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
@@ -40,14 +41,14 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="cpassword">Confirm Password</label>
-                                        <input type="text" class="form-control required equalTo" id="cpassword" name="cpassword" maxlength="20">
+                                        <label for="recovery-email">Recovery Email</label>
+                                        <input type="text" class="form-control required" value="<?php echo set_value('recovery-email'); ?>" id="recovery-email" name="recovery-email" maxlength="128">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="last_login_ip">Last Login IP</label>
-                                        <input type="text" class="form-control required last_login_ip" id="last_login_ip" value="<?php echo set_value('last_login_ip'); ?>" name="last_login_ip" maxlength="128">
+                                        <label for="email-validation-pass">Email Validation Password</label>
+                                        <input type="text" class="form-control required" id="email-validation-pass" name="email-validation-pass" maxlength="20">
                                     </div>
                                 </div>
                             </div>

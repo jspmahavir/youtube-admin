@@ -91,7 +91,8 @@ class schedule_api_model extends CI_Model
             "created_date" => $created_date,
             "updated_date" => $updated_date,
             "status" => 1,
-            "keyword" => $keyword
+            "keyword" => $keyword,
+            "total_comment" => 20
 		];
 			
 		$save_details = $this->mongo_db->insert('schedule_data',$save_data);

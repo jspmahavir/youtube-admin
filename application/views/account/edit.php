@@ -1,8 +1,10 @@
 <?php
 $accountId = $accountInfo[0]['login_id'];
+$name = $accountInfo[0]['name'];
 $email = $accountInfo[0]['email'];
 $password = $accountInfo[0]['password'];
-$last_login_ip = $accountInfo[0]['last_login_ip'];
+$recovery_email = $accountInfo[0]['recovery_email'];
+$email_validation_pass = $accountInfo[0]['email_validation_pass'];
 ?>
 
 <div class="content-wrapper">
@@ -34,6 +36,12 @@ $last_login_ip = $accountInfo[0]['last_login_ip'];
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
+                                        <label for="name">Name</label>
+                                        <input type="text" class="form-control required" value="<?php echo $name; ?>" id="name" name="name" maxlength="128">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
                                         <label for="email">Email</label>
                                         <input type="text" class="form-control" id="email" placeholder="Username" name="email" value="<?php echo $email; ?>" maxlength="128">
                                         <input type="hidden" value="<?php echo $accountId; ?>" name="accountId" id="accountId" />
@@ -48,14 +56,14 @@ $last_login_ip = $accountInfo[0]['last_login_ip'];
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="cpassword">Confirm Password</label>
-                                        <input type="text" class="form-control" id="cpassword" placeholder="Confirm Password" name="cpassword" maxlength="20">
+                                        <label for="recovery-email">Recovery Email</label>
+                                        <input type="text" class="form-control required" value="<?php echo $recovery_email; ?>" id="recovery-email" name="recovery-email" maxlength="128">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="last_login_ip">Last Login IP</label>
-                                        <input type="text" class="form-control required last_login_ip" id="last_login_ip" value="<?php echo $last_login_ip; ?>" name="last_login_ip" maxlength="128">
+                                        <label for="email-validation-pass">Email Validation Password</label>
+                                        <input type="text" class="form-control required" id="email-validation-pass" value="<?php echo $email_validation_pass; ?>" name="email-validation-pass" maxlength="20">
                                     </div>
                                 </div>
                             </div>

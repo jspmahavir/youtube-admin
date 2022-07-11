@@ -25,6 +25,9 @@ class Cron extends REST_Controller {
 		$this->load->helper('url');
 		$this->load->model('cron_model');
         $this->load->model('yt_model');
+        $this->load->model('configuration_model');
+        $settings = $this->configuration_model->getConfigurationInfo();
+        $this->config->set_item('settings', $settings);
 	}
 	
     public function index(){
@@ -485,6 +488,9 @@ class Cron extends REST_Controller {
             $scheduledData = $this->cron_model->getScheduledData($random_schedule, $call);
             if ($scheduledData) {
                 $commentCount = $scheduledData['scheduled_comment_count'] - $scheduledData['completed_comment_count'];
+                if($commentCount > 1) {
+                    $commentCount = 1;
+                }
                 $ytVideoId = $scheduledData['video_url'];
                 $scheduleDataId = $scheduledData['schedule_data_id'];
                 $tokenInfoData = $this->cron_model->getRandomAuthTokenComment($ytVideoId, $commentCount);
@@ -532,6 +538,9 @@ class Cron extends REST_Controller {
         if(isset($info) && isset($accessToken) && isset($ytVideoId) && isset($scheduleDataId)) {
             $comment = $this->cron_model->getUniqeComment($ytVideoId);
             if(empty($comment)) {
+                $comment = $this->cron_model->getUniqeGeneralComment($ytVideoId);
+            }
+            if(empty($comment)) {
                 $comment = "This is very nice video!!";
             }
             $ytCommentStats = array(
@@ -578,7 +587,7 @@ class Cron extends REST_Controller {
                         'status' => 'success',
                         'comment_count' => 1
                     );
-                    $this->cron_model->updateCommentCounter($yt_video_id);
+                    $this->cron_model->updateCommentCounter($scheduleDataId);
                 }
             }
             if($cId) {
@@ -620,6 +629,16 @@ class Cron extends REST_Controller {
             $endPoint = str_replace('checkdata', 'transcript', $url);
             if($scheduledData) {
                 foreach($scheduledData as $schedule) {
+                    //divide sceduled comments ratio into 50, 25, 25 percent for comments, question & opinion
+                    $scheduleComments = $schedule['scheduled_comments'];
+                    $remainder = $scheduleComments % 2;
+                    $twoHalf = floor($scheduleComments/2);
+                    $commentRatio = $twoHalf + $remainder;
+
+                    $remainder2 = $twoHalf % 2;
+                    $twoHalfOfHalf = floor($twoHalf/2);
+                    $questionOpinionRatio = $twoHalfOfHalf + $remainder2;
+                    //start cURL
                     $data['video_id'] = $schedule['video_url'];
                     $ch = curl_init($endPoint);
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -637,10 +656,16 @@ class Cron extends REST_Controller {
                         $transcriptData = json_decode($response, true);
                         $transcriptData['video_id'] = $schedule['video_url'];
                         $transcriptData['created'] = date('Y/m/d H:i:s');
+                        $transcriptData['total_comment'] = $schedule['total_comment'];
+                        $transcriptData['comment'] = 0;
+                        $transcriptData['comment_ratio'] = $commentRatio;
+                        $transcriptData['question_ratio'] = $questionOpinionRatio;
+                        $transcriptData['opinion_ratio'] = $questionOpinionRatio;
                         $sId = $this->cron_model->addtranscriptDesc($transcriptData);
                         echo $sId."\n";
                     }
                 }
+                $this->generatesubComments();
                 $ret = [
                     'status'   => true,
                     'messages' => 'All Video Transcript Generated'
@@ -672,6 +697,7 @@ class Cron extends REST_Controller {
             $endPoint = str_replace('checkdata', 'copyai', $url);
             if($transcriptData) {
                 foreach($transcriptData as $transcript) {
+                    $tid = $transcript['_id']->{'$id'};
                     $data['video_id'] = $transcript['video_id'];
                     $data['transcript'] = $transcript['transcript'];
                     $data['proxy'] = $proxyData['proxy_url'];
@@ -699,7 +725,9 @@ class Cron extends REST_Controller {
                                 $videoCommentData['video_id'] = $transcript['video_id'];
                                 $videoCommentData['comment'] = $comment;
                                 $videoCommentData['created_date'] = date('Y/m/d H:i:s');
+                                $videoCommentData['modified_date'] = date('Y/m/d H:i:s');
                                 $sId = $this->cron_model->addvideoComment($videoCommentData);
+                                $this->cron_model->updateTranscriptCommentCounter($tid);
                                 echo $sId."\n";
                             }
                         }
@@ -720,7 +748,326 @@ class Cron extends REST_Controller {
         } else {
             $ret = [
                 'status'   => false,
-                'messages' => 'Server not found'
+                'messages' => 'Transcript data not found!'
+            ];
+            $this->response($ret, REST_Controller::HTTP_OK);
+        }
+    }
+
+    public function generatesubComments() {
+        $transcriptData = $this->cron_model->getVideoTranscript();
+        foreach($transcriptData as $transcript) {
+            if(!isset($transcript['commentArr'])) {
+                $this->convertParatoArray($transcript);
+            }
+        }
+    }
+
+    public function convertParatoArray($arr) {
+        $length = 200;
+        $tid = $arr['_id']->{'$id'};
+        $transcriptContent = $arr['transcript'];
+        $stringAry = explode("||",wordwrap($transcriptContent, $length, "||"));
+        $this->cron_model->updateTranscriptwithjson(json_encode($stringAry), $tid);
+    }
+
+    public function generateCommentsWritesonic_get() {
+        $writeSonicUserId = 'hello@thebaysocial.com';
+        $transcriptData = $this->cron_model->getVideoTranscriptForComment();
+        if($transcriptData) {
+            $url = "https://api.writesonic.com/v1/business/content/analogies?end_user_id=".$writeSonicUserId."&engine=economy&language=en";
+            // $url = "https://api.writesonic.com/v1/business/content/analogies?engine=economy&language=en";
+            foreach($transcriptData as $transcript) {
+                if(isset($transcript['commentArr']) && $transcript['status'] == 'success') {
+                    $remainingComments = $transcript['total_comment'] - $transcript['comment'];
+                    if($remainingComments > 0) {
+                        $tid = $transcript['_id']->{'$id'};
+                        $transcriptArr = json_decode($transcript['commentArr']);
+                        $rand_keys = array_rand($transcriptArr);
+                        $transcriptStr = $transcriptArr[$rand_keys];
+                        
+                        $data = array();
+                        $data['content'] = $transcriptStr;
+                        
+                        $ch = curl_init($url);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-API-KEY: d141e5c1-10d6-4037-a2e6-816e1e87a834', 'Content-Type:application/json'));
+                        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 4000);
+
+                        $response = curl_exec($ch);
+                        $resArr = json_decode($response, true);
+                        if(isset($resArr['detail'])) {
+                            $errMsg = "";
+                            foreach($resArr['detail'] as $res) {
+                                $errMsg = $res['msg'];
+                            }
+                            $ret = [
+                                'status'   => false,
+                                'messages' => $errMsg
+                            ];
+                            $this->response($ret, REST_Controller::HTTP_OK);
+                        } else {
+                            foreach($resArr as $r) {
+                                $videoCommentData = array();
+                                $videoCommentData['comment_id'] = $this->cron_model->getCommentLastId();
+                                $videoCommentData['video_id'] = $transcript['video_id'];
+                                $videoCommentData['comment'] = $r['text'];
+                                $videoCommentData['created_date'] = date('Y/m/d H:i:s');
+                                $videoCommentData['modified_date'] = date('Y/m/d H:i:s');
+                                $videoCommentData['source'] = 'writesonic';
+                                $sId = $this->cron_model->addvideoComment($videoCommentData);
+                                $this->cron_model->updateTranscriptCommentCounter($tid);
+                                echo $sId."\n";
+                            }
+                        }
+                    }
+                } else {
+                    $ret = [
+                        'status'   => false,
+                        'messages' => 'Video Transcript not found!'
+                    ];
+                    $this->response($ret, REST_Controller::HTTP_OK);
+                }
+                $ret = [
+                    'status'   => true,
+                    'messages' => 'Video Comment Generated...'
+                ];
+                $this->response($ret, REST_Controller::HTTP_OK);
+            }
+        } else {
+            $ret = [
+                'status'   => false,
+                'messages' => 'Data not found'
+            ];
+            $this->response($ret, REST_Controller::HTTP_OK);
+        }
+    }
+
+    public function createWorkFlowViaDrafter_get() {
+        //get configuration settings
+        $config = $this->config->item('settings');
+        $con = json_decode($config[0]['configuration']);
+
+        $transcriptData = $this->cron_model->getVideoTranscriptForComment();
+        if($transcriptData) {
+            $url = 'https://api.drafter.ai/workflow-executions';
+            foreach($transcriptData as $transcript) {
+                if($transcript['status'] === 'success' && isset($transcript['transcript']) && isset($transcript['video_id'])) {
+                    $remainingComments = $transcript['total_comment'] - $transcript['comment'];
+                    if($remainingComments > 0) {
+                        $tid = $transcript['_id']->{'$id'};
+                        $transcriptVal = $transcript['transcript'];
+                        if (isset($transcript['comment_ratio'])) {
+                            if ($transcript['comment_ratio'] > 0 || $transcript['question_ratio'] > 0 || $transcript['opinion_ratio'] > 0) {
+                                $data = array();
+                                if ($transcript['comment_ratio'] > 0) {
+                                    $data['workflowId'] = $con->comment_wf_id;
+                                } elseif ($transcript['question_ratio'] > 0) {
+                                    $data['workflowId'] = $con->question_wf_id;
+                                } elseif ($transcript['opinion_ratio'] > 0) {
+                                    $data['workflowId'] = $con->opinion_wf_id;
+                                }
+                                //drafter may be allow only upto 400 words, so we can make transcript with 400 words
+                                $ytTranscript = implode(' ', array_slice(explode(' ', $transcriptVal), 0, 395));
+                                if ($data['workflowId'] === '110') {
+                                    $data['context']['youtubeLink'] = 'https://www.youtube.com/watch?v='.$transcript['video_id'];
+                                } else {
+                                    $data['context']['transcript'] = $ytTranscript;
+                                }
+                                $post = json_encode($data);
+    
+                                $curl = curl_init();
+                                $key = $con->drafter_key;
+                                curl_setopt_array($curl, array(
+                                    CURLOPT_URL => $url,
+                                    CURLOPT_RETURNTRANSFER => true,
+                                    CURLOPT_ENCODING => '',
+                                    CURLOPT_MAXREDIRS => 10,
+                                    CURLOPT_TIMEOUT => 0,
+                                    CURLOPT_FOLLOWLOCATION => true,
+                                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                                    CURLOPT_CUSTOMREQUEST => 'POST',
+                                    CURLOPT_POSTFIELDS => $post,
+                                    CURLOPT_HTTPHEADER => array(
+                                        'X-Access-Key: '.$key,
+                                        'Content-Type: application/json'
+                                    ),
+                                ));
+    
+                                $response = curl_exec($curl);
+                                curl_close($curl);
+                                $resArr = json_decode($response, true);
+                                if($tid == '') {
+                                    $errMsg = $resArr['error']['message'];
+                                    $ret = [
+                                        'status'   => false,
+                                        'messages' => $errMsg
+                                    ];
+                                    $this->response($ret, REST_Controller::HTTP_OK);
+                                } else {
+                                    $silk = $this->cron_model->addWorkflowExecution($tid, $data['workflowId'], $resArr[0]['id'], $post, $resArr);
+                                    if ($silk === true) {
+                                        $ret = [
+                                            'status'   => true,
+                                            'messages' => 'Workflow execution added successfully'
+                                        ];
+                                        $this->response($ret, REST_Controller::HTTP_OK);
+                                    } else {
+                                        $ret = [
+                                            'status'   => false,
+                                            'messages' => 'Workflow execution add failed'
+                                        ];
+                                        $this->response($ret, REST_Controller::HTTP_OK);
+                                    }
+                                }
+                            } else {
+                                $ret = [
+                                    'status'   => false,
+                                    'messages' => 'Maximum comments are added!!'
+                                ];
+                                $this->response($ret, REST_Controller::HTTP_OK);
+                            }
+                        }
+                    }
+                } else {
+                    $ret = [
+                        'status'   => false,
+                        'messages' => 'Video Transcript not found!'
+                    ];
+                    $this->response($ret, REST_Controller::HTTP_OK);
+                }
+            }
+        } else {
+            $ret = [
+                'status'   => false,
+                'messages' => 'Data not found'
+            ];
+            $this->response($ret, REST_Controller::HTTP_OK);
+        }
+    }
+    
+    public function generateCommentsViaDrafter_get() {
+        //get configuration settings
+        $config = $this->config->item('settings');
+        $con = json_decode($config[0]['configuration']);
+
+        $executedData = $this->cron_model->getWorkflowExecution();
+
+        if ($executedData) {
+            foreach($executedData as $execution) {
+                if ($execution['status'] === "remaining" && isset($execution['execution_id']) && isset($execution['transcript_id']) && isset($execution['workflow_id'])) {
+                    $transcriptData = $this->cron_model->getVideoTranscriptById($execution['transcript_id']);
+                    if($transcriptData) {
+                        if($transcriptData[0]['status'] === 'success' && isset($transcriptData[0]['video_id'])) {
+                            $tid = $transcriptData[0]['_id']->{'$id'};
+                            $wfobjid = $execution['_id']->{'$id'};
+                            $workflowid = $execution['workflow_id'];
+                            $request = $execution['request'];
+                            $response = $execution['response'];
+                            if ($transcriptData[0]['comment_ratio'] > 0 || $transcriptData[0]['question_ratio'] > 0 || $transcriptData[0]['opinion_ratio'] > 0) {
+                                //cURL for get & insert executed comments from drafter
+                                $wfexurl = 'https://api.drafter.ai/workflow-executions/?workflowId='.$workflowid.'&id='.$execution['execution_id'];
+
+                                $key = $con->drafter_key;
+
+                                $curlpenut = curl_init();
+                                curl_setopt_array($curlpenut, array(
+                                    CURLOPT_URL => $wfexurl,
+                                    CURLOPT_RETURNTRANSFER => true,
+                                    CURLOPT_ENCODING => '',
+                                    CURLOPT_MAXREDIRS => 10,
+                                    CURLOPT_TIMEOUT => 0,
+                                    CURLOPT_FOLLOWLOCATION => true,
+                                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                                    CURLOPT_CUSTOMREQUEST => 'GET',
+                                    CURLOPT_HTTPHEADER => array(
+                                        'X-Access-Key: '.$key
+                                    ),
+                                ));
+                                $resmore = curl_exec($curlpenut);
+                                curl_close($curlpenut);
+
+                                $resGrapes = json_decode($resmore, true);
+
+                                if(isset($resGrapes['error'])) {
+                                    $errNews = $resGrapes['error']['message'];
+                                    $ret = [
+                                        'status'   => false,
+                                        'messages' => $errNews
+                                    ];
+                                    $this->response($ret, REST_Controller::HTTP_OK);
+                                } else if(!empty($resGrapes['data'])) {
+                                    foreach($resGrapes['data'][0]['pipeline'] as $r) {
+                                        $videoCommentData = array();
+                                        $videoCommentData['comment_id'] = $this->cron_model->getCommentLastId();
+                                        $videoCommentData['video_id'] = $transcriptData[0]['video_id'];
+                                        $videoCommentData['comment'] = $workflowid === '110' ? $r['commentYoutube'] : ($workflowid === '82' ? $r['questionYoutube'] : $r['opinionYoutube']);
+                                        $videoCommentData['created_date'] = date('Y/m/d H:i:s');
+                                        $videoCommentData['modified_date'] = date('Y/m/d H:i:s');
+                                        $videoCommentData['source'] = 'drafter';
+                                        $videoCommentData['request'] = $request;
+                                        $videoCommentData['response'] = $resGrapes['data'];
+                                        if ($workflowid === '110') {
+                                            $videoCommentData['comment_type'] = 'comment';
+                                        } else if ($workflowid === '82') {
+                                            $videoCommentData['comment_type'] = 'question';
+                                        } else if ($workflowid === '142') {
+                                            $videoCommentData['comment_type'] = 'opinion';
+                                        }
+                                        $sId = $this->cron_model->addvideoComment($videoCommentData);
+                                        $this->cron_model->updateTranscriptCommentCounter($tid, $workflowid);
+                                        echo $sId."\n";
+                                    }
+                                    $this->cron_model->updateWorkflowExStatus($wfobjid);
+                                    $ret = [
+                                        'status'   => true,
+                                        'messages' => 'Comments added successfully'
+                                    ];
+                                    $this->response($ret, REST_Controller::HTTP_OK);
+                                } else {
+                                    $ret = [
+                                        'status'   => false,
+                                        'messages' => 'No comments found for add!!'
+                                    ];
+                                    $this->response($ret, REST_Controller::HTTP_OK);
+                                }
+                            } else {
+                                $ret = [
+                                    'status'   => false,
+                                    'messages' => 'Maximum comments are added!!'
+                                ];
+                                $this->response($ret, REST_Controller::HTTP_OK);
+                            }
+                        } else {
+                            $ret = [
+                                'status'   => false,
+                                'messages' => 'Transcripted video not found!'
+                            ];
+                            $this->response($ret, REST_Controller::HTTP_OK);
+                        }
+                    } else {
+                        $ret = [
+                            'status'   => false,
+                            'messages' => 'Transcript data not found!'
+                        ];
+                        $this->response($ret, REST_Controller::HTTP_OK);
+                    }
+                } else {
+                    $ret = [
+                        'status'   => false,
+                        'messages' => 'All execution completed!!'
+                    ];
+                    $this->response($ret, REST_Controller::HTTP_OK);
+                }
+            }
+        } else {
+            $ret = [
+                'status'   => false,
+                'messages' => 'Workflow execution data not found!'
             ];
             $this->response($ret, REST_Controller::HTTP_OK);
         }
